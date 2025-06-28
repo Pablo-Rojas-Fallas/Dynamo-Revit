@@ -1,0 +1,160 @@
+{
+  "Uuid": "35e22778-38d8-4854-ba0c-a76f9b670091",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "Warnings",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [
+    {
+      "Id": "299ba43c9198441b88ddb6e6ea2abd98",
+      "Name": "File Path",
+      "Type": "string",
+      "Type2": "string",
+      "Value": "No file selected.",
+      "Description": "Allows you to select a file on the system to get its file path.",
+      "SelectedIndex": 0
+    }
+  ],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "import clr\r\nimport sys\r\nimport os\r\n\r\n# Referencias a Revit API y Dynamo\r\nclr.AddReference(\"RevitServices\")\r\nimport RevitServices\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\nclr.AddReference(\"RevitAPI\")\r\nfrom Autodesk.Revit.DB import *\r\n\r\n# Librerías Python estándar para Excel\r\nfrom openpyxl import load_workbook\r\nfrom openpyxl.utils import get_column_letter\r\n\r\n# Obtener documento activo y su ruta\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\nrevit_path = doc.PathName\r\n\r\n# Input del nodo Dynamo (ruta del archivo .xlsx)\r\nxlsx_path = IN[0]\r\nif isinstance(xlsx_path, list):\r\n    xlsx_path = xlsx_path[0]\r\n\r\n# Diccionario de palabras clave con su clasificación\r\nkeyword_classification = {\r\n    \"duplicate\":3,\r\n    \"identical instances\":3,\r\n    \"overlap\":2,\r\n    \"off axis\":2,\r\n    \"unassociated\":3,\r\n    \"not properly enclosed\":3,\r\n    \"cannot maintain attachment\":3,\r\n    \"ignored in calculations\":3,\r\n    \"will not remain\":3,\r\n    \"conflicts\":3,\r\n    \"invalid\":3,\r\n    \"cannot connect\":3,\r\n    \"missing\":2,\r\n    \"outside\":2,\r\n    \"unused\":1,\r\n    \"hidden\":1,\r\n    \"slightly\":2,\r\n    \"malformed\":1,\r\n    \"not continuous\":2,\r\n    \"ignorable\":1,\r\n    \"leader\":2,\r\n    \"no solid geometry\":2,\r\n    \"duplicate mark\":1,\r\n    \"duplicate number\":1,\r\n    \"not editable\":1,\r\n    \"not joined\":1,\r\n    \"not closed\":2,\r\n    \"exceeds\":3,\r\n    \"less than minimum\":3,\r\n    \"cannot reach\":3\r\n}\r\n\r\ndef classify_error(msg):\r\n    msg_lower = msg.lower()\r\n    max_class = 1\r\n    for kw, cls in keyword_classification.items():\r\n        if kw in msg_lower:\r\n            if cls > max_class:\r\n                max_class = cls\r\n    return max_class\r\n\r\n# Extraer warnings del documento\r\nwarnings = doc.GetWarnings()\r\n\r\n# Preparar datos para Excel\r\ndata_rows = []\r\nfor warning in warnings:\r\n    msg = warning.GetDescriptionText()\r\n    element_ids = warning.GetFailingElements()\r\n    element_ids_str = \"; \".join(str(eid.IntegerValue) for eid in element_ids)\r\n    classification = classify_error(msg)\r\n    data_rows.append([revit_path, msg, element_ids_str, classification])\r\n\r\n# Cargar workbook Excel existente\r\nwb = load_workbook(xlsx_path)\r\n\r\n# Revisar si existe la hoja \"Warning\"\r\nif \"Warning\" in wb.sheetnames:\r\n    ws = wb[\"Warning\"]\r\n    start_row = ws.max_row + 1  # donde empezamos a escribir nuevas filas (append)\r\nelse:\r\n    ws = wb.create_sheet(\"Warning\")\r\n    # Escribir encabezados solo si se crea la hoja\r\n    ws.append([\"Revit File\", \"Error Message\", \"Elements and Ids\", \"Classification\"])\r\n    start_row = 2  # siguiente fila después de encabezados\r\n\r\n# Agregar filas nuevas (append)\r\nfor row_data in data_rows:\r\n    ws.append(row_data)\r\n\r\n# Guardar cambios\r\nwb.save(xlsx_path)\r\n\r\n# Salida\r\nOUT = \"Archivo Excel actualizado con {} warnings (append si la hoja existía).\".format(len(data_rows))\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "2055a0daab154a609f05befc4bd85383",
+      "Inputs": [
+        {
+          "Id": "5b06606e8e744ac999ac010877994c07",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "bb6309e1c4fd4937b998a86223028e8a",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.Filename, CoreNodeModels",
+      "HintPath": "",
+      "InputValue": "No file selected.",
+      "NodeType": "ExtensionNode",
+      "Id": "299ba43c9198441b88ddb6e6ea2abd98",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "8389ca6a1a2c454bb83ebf9a694dc677",
+          "Name": "",
+          "Description": "File Path",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows you to select a file on the system to get its file path."
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "8389ca6a1a2c454bb83ebf9a694dc677",
+      "End": "5b06606e8e744ac999ac010877994c07",
+      "Id": "19e9cab967cd449d8913f79b57962fd4",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Properties",
+      "Version": "2.16",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "3.0",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "None",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.16.4.10216",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "Background Preview",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Name": "Python Script",
+        "ShowGeometry": true,
+        "Id": "2055a0daab154a609f05befc4bd85383",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 350.67346349757872,
+        "Y": 227.46464196424873
+      },
+      {
+        "Name": "File Path",
+        "ShowGeometry": true,
+        "Id": "299ba43c9198441b88ddb6e6ea2abd98",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": -18.768977047986255,
+        "Y": 192.62518693148786
+      }
+    ],
+    "Annotations": [],
+    "X": 313.44574648753314,
+    "Y": 82.429158040592682,
+    "Zoom": 1.0360578756006082
+  }
+}
